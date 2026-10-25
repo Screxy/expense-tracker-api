@@ -115,3 +115,26 @@ def delete_expense(expense_id: int):
     if expenses.pop(expense_id, None) is None:
         raise HTTPException(status_code=404, detail=f"Expense {expense_id} not found")
     logger.info("Deleted expense #%d", expense_id)
+
+
+@app.get("/summary")
+def summary(month: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}$", description="YYYY-MM")):
+    """Totals by category for a month and remaining budget (MONTHLY_BUDGET)."""
+    month = month or date.today().strftime("%Y-%m")
+    by_category: Dict[str, float] = {}
+    for e in expenses.values():
+        if e.spent_on.strftime("%Y-%m") == month:
+            by_category[e.category] = round(by_category.get(e.category, 0) + e.amount, 2)
+    total = round(sum(by_category.values()), 2)
+    over_budget = total > MONTHLY_BUDGET
+    if over_budget:
+        logger.warning("Budget exceeded for %s: %.2f > %.2f %s", month, total, MONTHLY_BUDGET, CURRENCY)
+    return {
+        "month": month,
+        "currency": CURRENCY,
+        "total": total,
+        "by_category": by_category,
+        "budget": MONTHLY_BUDGET,
+        "remaining": round(MONTHLY_BUDGET - total, 2),
+        "over_budget": over_budget,
+    }
