@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 APP_NAME = os.getenv("APP_NAME", "Expense Tracker API")
@@ -54,6 +54,15 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title=APP_NAME, version=APP_VERSION, lifespan=lifespan)
 
 STARTED_AT = time.time()
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    logger.info("%s %s -> %d (%.1f ms)", request.method, request.url.path, response.status_code, elapsed_ms)
+    return response
 
 
 @app.get("/")
