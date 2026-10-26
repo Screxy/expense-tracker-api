@@ -24,6 +24,34 @@
 
 Категории: `food`, `transport`, `housing`, `health`, `entertainment`, `other` (регистр не важен).
 
+## Быстрый старт
+
+Нужны Docker и `make`. Одна команда собирает образ и запускает контейнер:
+
+```bash
+git clone https://github.com/Screxy/expense-tracker-api.git
+cd expense-tracker-api
+make up        # сборка образа + запуск на http://127.0.0.1:8000/docs
+make health    # проверить /health и /version
+make logs      # смотреть логи
+make down      # остановить
+```
+
+Все команды: `make help`.
+
+| Команда | Что делает |
+|---------|------------|
+| `make install` | Создаёт `.venv`, ставит зависимости, копирует `.env.example` в `.env` |
+| `make run` | Запуск локально без `--reload` |
+| `make dev` | Запуск локально с `--reload` |
+| `make test` | `python -m pytest -v` |
+| `make up` / `make down` | Запуск / остановка в Docker |
+| `make logs` | Логи контейнера |
+| `make health` | Запросы к `/health` и `/version` |
+| `make clean` | Удаляет `.venv`, кэши, контейнер и образ |
+
+Порт можно поменять: `make up PORT=8080`.
+
 ## Установка
 
 Нужен Python 3.9+.
@@ -76,6 +104,18 @@ uvicorn app_final:app --reload --env-file .env
 
 После запуска откройте документацию: <http://127.0.0.1:8000/docs>
 
+### Запуск в Docker без make
+
+```bash
+docker build -t expense-tracker-api .
+docker run -d --name expense-tracker -p 8000:8000 --env-file .env expense-tracker-api
+docker logs -f expense-tracker
+```
+
+Образ основан на `python:3.12-slim`, приложение работает от непривилегированного пользователя,
+в образ встроен `HEALTHCHECK` по `/health` (состояние видно в `docker ps`). Файл `.env` в образ
+не копируется (`.dockerignore`) — переменные передаются при запуске через `--env-file`.
+
 Пример работы:
 
 ```bash
@@ -105,7 +145,8 @@ Workflow `.github/workflows/ci.yml` запускается на каждый `pu
 2. запускает `python -m pytest -v`;
 3. делает smoke-тест: поднимает приложение через uvicorn и проверяет `/health`;
 4. после успешных проверок загружает artifact `expense-tracker-app`
-   (`app_final.py`, `requirements.txt`, `README.md`, `.env.example`).
+   (`app_final.py`, `requirements.txt`, `README.md`, `.env.example`);
+5. отдельный job `docker` собирает образ, запускает контейнер и проверяет `/health`.
 
 Artifact можно скачать на странице запуска во вкладке **Actions → нужный запуск → Artifacts**.
 
@@ -122,6 +163,8 @@ curl http://127.0.0.1:8000/version
 ```
 
 **Где смотреть логи.** Приложение пишет логи в стандартный вывод (терминал, в котором запущен uvicorn).
+В Docker — `make logs` или `docker logs -f expense-tracker`; состояние healthcheck — `docker ps`
+(колонка STATUS: `healthy` / `unhealthy`). Время в логах контейнера — UTC.
 Чтобы сохранить их в файл:
 
 ```bash
@@ -149,6 +192,8 @@ uvicorn app_final:app --env-file .env 2>&1 | tee app.log
 | `Address already in use` | Порт 8000 занят: запустите с `--port 8001` или остановите другой процесс (`lsof -i :8000`) |
 | `ValueError: could not convert string to float` при старте | В `MONTHLY_BUDGET` записано не число — исправьте `.env` |
 | `422 Unknown category` | Категории нет в списке — посмотрите `GET /categories` |
+| `Conflict. The container name "/expense-tracker" is already in use` | Старый контейнер не удалён: `make down`, затем `make up` (`make up` делает это сам) |
+| `Cannot connect to the Docker daemon` | Docker не запущен — запустите Docker Desktop |
 | Данные пропали | Хранилище в памяти, после перезапуска оно пустое — это ожидаемо |
 
 ## Источник
