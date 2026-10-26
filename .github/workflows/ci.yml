@@ -49,3 +49,24 @@ jobs:
             requirements.txt
             README.md
             .env.example
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t expense-tracker-api .
+
+      - name: Smoke test - run container and call /health
+        run: |
+          docker run -d --name expense-tracker -p 8000:8000 expense-tracker-api
+          for i in $(seq 1 20); do
+            curl -sf http://127.0.0.1:8000/health && exit 0
+            sleep 1
+          done
+          docker logs expense-tracker
+          echo "Container did not become healthy" && exit 1
