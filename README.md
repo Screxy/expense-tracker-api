@@ -29,8 +29,8 @@
 Нужен Python 3.9+.
 
 ```bash
-git clone <URL этого репозитория>
-cd <папка репозитория>
+git clone https://github.com/Screxy/expense-tracker-api.git
+cd expense-tracker-api
 
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
